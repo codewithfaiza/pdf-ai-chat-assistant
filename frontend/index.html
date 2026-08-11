@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="description" content="Upload a PDF document and ask AI-powered questions about its content instantly.">
     <title>PDF AI Chat Assistant</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,6 +20,8 @@
             --text-muted: #9ca3af;
             --user-bubble: #3730a3;
             --bot-bubble: rgba(30, 41, 59, 0.8);
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
         }
 
         * {
@@ -27,20 +30,74 @@
             box-sizing: border-box;
         }
 
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
         body {
             font-family: 'Outfit', sans-serif;
             background-color: var(--bg-color);
             color: var(--text-main);
-            height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: hidden;
             background-image: 
                 radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
                 radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.15) 0%, transparent 40%);
         }
 
+        /* ── Mobile Toggle Button ── */
+        .mobile-toggle {
+            display: none;
+            position: fixed;
+            top: 14px;
+            left: 14px;
+            z-index: 1001;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .mobile-toggle:hover {
+            background: rgba(99, 102, 241, 0.2);
+        }
+
+        .mobile-toggle svg {
+            width: 22px;
+            height: 22px;
+            stroke: var(--text-main);
+            stroke-width: 2;
+            stroke-linecap: round;
+            fill: none;
+        }
+
+        /* ── Overlay (mobile sidebar backdrop) ── */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .sidebar-overlay.visible {
+            opacity: 1;
+        }
+
+        /* ── Container ── */
         .container {
             width: 90%;
             max-width: 1000px;
@@ -50,6 +107,7 @@
             position: relative;
         }
 
+        /* ── Sidebar ── */
         .sidebar {
             flex: 1;
             max-width: 320px;
@@ -62,6 +120,7 @@
             flex-direction: column;
             gap: 20px;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            overflow-y: auto;
         }
 
         .header h1 {
@@ -86,12 +145,17 @@
             background: rgba(99, 102, 241, 0.05);
             cursor: pointer;
             transition: all 0.3s ease;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .upload-card:hover {
             border-color: var(--primary);
             background: rgba(99, 102, 241, 0.1);
             transform: translateY(-2px);
+        }
+
+        .upload-card:active {
+            transform: scale(0.98);
         }
 
         .upload-card svg {
@@ -146,6 +210,7 @@
             font-size: 12px;
         }
 
+        /* ── Main Chat Panel ── */
         .main-chat {
             flex: 2;
             background: var(--panel-bg);
@@ -158,6 +223,42 @@
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
 
+        /* ── Mobile top bar inside chat ── */
+        .chat-topbar {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(13, 15, 23, 0.5);
+        }
+
+        .chat-topbar h2 {
+            font-size: 16px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #a5b4fc, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .chat-topbar .doc-pill {
+            margin-left: auto;
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(99, 102, 241, 0.15);
+            color: #a5b4fc;
+            max-width: 140px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            display: none;
+        }
+
+        .chat-topbar .doc-pill.active {
+            display: inline-block;
+        }
+
         .chat-messages {
             flex: 1;
             padding: 24px;
@@ -165,6 +266,7 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
+            -webkit-overflow-scrolling: touch;
         }
 
         .chat-placeholder {
@@ -189,6 +291,8 @@
             font-size: 14px;
             line-height: 1.5;
             animation: fadeIn 0.3s ease;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
 
         @keyframes fadeIn {
@@ -226,7 +330,8 @@
             border-radius: 12px;
             padding: 12px 16px;
             color: #ffffff;
-            font-size: 14px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px; /* prevent iOS zoom on focus */
             outline: none;
             transition: all 0.3s ease;
         }
@@ -244,12 +349,19 @@
             padding: 0 20px;
             font-weight: 600;
             font-size: 14px;
+            font-family: 'Outfit', sans-serif;
             cursor: pointer;
             transition: background 0.3s ease;
+            min-height: 44px; /* touch-friendly */
+            -webkit-tap-highlight-color: transparent;
         }
 
         .input-area button:hover {
             background: var(--primary-hover);
+        }
+
+        .input-area button:active {
+            transform: scale(0.96);
         }
 
         .input-area button:disabled {
@@ -268,24 +380,211 @@
         .status-badge.success { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
         .status-badge.loading { background: rgba(234, 179, 8, 0.2); color: #fde047; }
         .status-badge.error { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+        /* ─────────────────────────────────────────
+           RESPONSIVE — TABLETS (≤ 900px)
+        ───────────────────────────────────────── */
+        @media (max-width: 900px) {
+            .container {
+                width: 96%;
+                gap: 14px;
+            }
+            .sidebar {
+                max-width: 260px;
+                padding: 18px;
+            }
+        }
+
+        /* ─────────────────────────────────────────
+           RESPONSIVE — PHONES (≤ 768px)
+        ───────────────────────────────────────── */
+        @media (max-width: 768px) {
+            body {
+                align-items: stretch;
+                justify-content: stretch;
+            }
+
+            .container {
+                width: 100%;
+                max-width: 100%;
+                height: 100%;
+                height: 100dvh;
+                gap: 0;
+                flex-direction: column;
+                border-radius: 0;
+                padding-top: var(--safe-top);
+                padding-bottom: var(--safe-bottom);
+            }
+
+            /* Show the hamburger */
+            .mobile-toggle {
+                display: flex;
+            }
+
+            /* Sidebar becomes a slide-in drawer */
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                z-index: 1000;
+                width: 85%;
+                max-width: 340px;
+                height: 100%;
+                height: 100dvh;
+                border-radius: 0 20px 20px 0;
+                padding: 60px 20px 24px 20px;
+                transform: translateX(-105%);
+                transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+                overflow-y: auto;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .sidebar-overlay {
+                display: block;
+                pointer-events: none;
+            }
+
+            .sidebar-overlay.visible {
+                pointer-events: auto;
+            }
+
+            /* Chat fills everything */
+            .main-chat {
+                flex: 1;
+                border-radius: 0;
+                border: none;
+                min-height: 0;
+            }
+
+            /* Show the top bar */
+            .chat-topbar {
+                display: flex;
+            }
+
+            /* Chat messages padding */
+            .chat-messages {
+                padding: 16px;
+                gap: 12px;
+            }
+
+            .message {
+                max-width: 88%;
+                padding: 10px 14px;
+                font-size: 14px;
+            }
+
+            /* Input area safe padding */
+            .input-area {
+                padding: 12px 14px;
+                padding-bottom: calc(12px + var(--safe-bottom));
+                gap: 10px;
+            }
+
+            .input-area input {
+                padding: 12px 14px;
+                border-radius: 14px;
+            }
+
+            .input-area button {
+                padding: 0 16px;
+                border-radius: 14px;
+            }
+
+            .chat-placeholder p {
+                font-size: 14px;
+                padding: 0 20px;
+            }
+
+            .chat-placeholder p::after {
+                content: '';
+            }
+        }
+
+        /* ─────────────────────────────────────────
+           RESPONSIVE — SMALL PHONES (≤ 400px)
+        ───────────────────────────────────────── */
+        @media (max-width: 400px) {
+            .sidebar {
+                width: 92%;
+                padding: 56px 16px 20px 16px;
+            }
+
+            .upload-card {
+                padding: 18px 12px;
+            }
+
+            .upload-card svg {
+                width: 32px;
+                height: 32px;
+            }
+
+            .header h1 {
+                font-size: 20px;
+            }
+
+            .message {
+                max-width: 92%;
+                font-size: 13px;
+            }
+        }
+
+        /* ─────────────────────────────────────────
+           Keyboard handling — shrink on iOS
+        ───────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .container {
+                height: 100dvh;
+            }
+        }
+
+        /* Scrollbar styling */
+        .chat-messages::-webkit-scrollbar {
+            width: 5px;
+        }
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.3);
+            border-radius: 10px;
+        }
+        .sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.2);
+            border-radius: 10px;
+        }
     </style>
 </head>
 <body>
 
+<!-- Mobile hamburger toggle -->
+<button class="mobile-toggle" id="menuToggle" aria-label="Open sidebar menu">
+    <svg viewBox="0 0 24 24" id="menuIcon">
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <line x1="3" y1="12" x2="21" y2="12"></line>
+        <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+</button>
+
+<!-- Overlay behind sidebar on mobile -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
 <div class="container">
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
         <div class="header">
             <h1>PDF AI Assistant</h1>
             <p>Upload a PDF and ask questions instantly.</p>
         </div>
 
-        <div class="upload-card" onclick="document.getElementById('fileInput').click()">
+        <div class="upload-card" id="uploadCard">
             <svg viewBox="0 0 24 24">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="17 8 12 3 7 8"></polyline>
                 <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
-            <p id="uploadText">Click to select PDF</p>
+            <p id="uploadText">Tap to select PDF</p>
             <span>Supports .pdf format</span>
             <input type="file" id="fileInput" accept=".pdf">
         </div>
@@ -306,17 +605,23 @@
     </div>
 
     <div class="main-chat">
+        <!-- Mobile top bar with title + doc pill -->
+        <div class="chat-topbar" id="chatTopbar">
+            <h2>PDF AI Chat</h2>
+            <span class="doc-pill" id="docPill"></span>
+        </div>
+
         <div class="chat-messages" id="chatMessages">
             <div class="chat-placeholder" id="placeholder">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                 </svg>
-                <p>Upload a PDF document on the left to start asking questions.</p>
+                <p>Upload a PDF to start chatting — tap the ☰ menu to get started.</p>
             </div>
         </div>
 
         <div class="input-area">
-            <input type="text" id="questionInput" placeholder="Ask a question about your PDF..." disabled>
+            <input type="text" id="questionInput" placeholder="Ask about your PDF..." disabled>
             <button id="sendBtn" disabled>Send</button>
         </div>
     </div>
@@ -326,7 +631,9 @@
     const API_BASE = window.location.origin;
     let activeDocId = null;
 
+    // DOM elements
     const fileInput = document.getElementById('fileInput');
+    const uploadCard = document.getElementById('uploadCard');
     const uploadText = document.getElementById('uploadText');
     const statusBadge = document.getElementById('statusBadge');
     const docInfo = document.getElementById('docInfo');
@@ -337,7 +644,54 @@
     const placeholder = document.getElementById('placeholder');
     const questionInput = document.getElementById('questionInput');
     const sendBtn = document.getElementById('sendBtn');
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const menuIcon = document.getElementById('menuIcon');
+    const docPill = document.getElementById('docPill');
 
+    // ── Sidebar toggle (mobile) ──
+    function openSidebar() {
+        sidebar.classList.add('open');
+        sidebarOverlay.classList.add('visible');
+        menuIcon.innerHTML = '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>';
+    }
+
+    function closeSidebar() {
+        sidebar.classList.remove('open');
+        sidebarOverlay.classList.remove('visible');
+        menuIcon.innerHTML = '<line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line>';
+    }
+
+    menuToggle.addEventListener('click', () => {
+        if (sidebar.classList.contains('open')) {
+            closeSidebar();
+        } else {
+            openSidebar();
+        }
+    });
+
+    sidebarOverlay.addEventListener('click', closeSidebar);
+
+    // Close sidebar on swipe left
+    let touchStartX = 0;
+    sidebar.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+
+    sidebar.addEventListener('touchend', (e) => {
+        const touchEndX = e.changedTouches[0].screenX;
+        if (touchStartX - touchEndX > 60) {
+            closeSidebar();
+        }
+    }, { passive: true });
+
+    // Upload card click handler
+    uploadCard.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    // ── File upload ──
     fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -366,12 +720,21 @@
             docChunks.innerText = data.chunk_count.toLocaleString();
             docInfo.style.display = 'block';
 
+            // Update mobile doc pill
+            docPill.innerText = data.filename;
+            docPill.classList.add('active');
+
             showStatus('Document Ready', 'success');
             questionInput.disabled = false;
             sendBtn.disabled = false;
             if (placeholder) placeholder.style.display = 'none';
 
-            appendMessage('bot', `✅ Successfully indexed **${data.filename}** (${data.chunk_count} chunks). Ask me anything about this document!`);
+            appendMessage('bot', `✅ Successfully indexed "${data.filename}" (${data.chunk_count} chunks). Ask me anything about this document!`);
+
+            // Auto-close sidebar on mobile after successful upload
+            if (window.innerWidth <= 768) {
+                setTimeout(closeSidebar, 600);
+            }
 
         } catch (err) {
             showStatus(err.message, 'error');
@@ -379,6 +742,7 @@
         }
     });
 
+    // ── Chat ──
     sendBtn.addEventListener('click', sendQuestion);
     questionInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') sendQuestion();
@@ -439,6 +803,15 @@
             msgDiv.innerText = text;
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
+    }
+
+    // ── Handle visual viewport changes (mobile keyboard) ──
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+            document.documentElement.style.setProperty(
+                '--vh', window.visualViewport.height + 'px'
+            );
+        });
     }
 </script>
 </body>
