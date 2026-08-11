@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF AI Chat Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0d0f17;
+            --panel-bg: rgba(22, 27, 46, 0.7);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --accent-glow: rgba(99, 102, 241, 0.25);
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --user-bubble: #3730a3;
+            --bot-bubble: rgba(30, 41, 59, 0.8);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.15) 0%, transparent 40%);
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1000px;
+            height: 90vh;
+            display: flex;
+            gap: 20px;
+            position: relative;
+        }
+
+        .sidebar {
+            flex: 1;
+            max-width: 320px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #a5b4fc, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+
+        .header p {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .upload-card {
+            border: 2px dashed rgba(99, 102, 241, 0.4);
+            border-radius: 14px;
+            padding: 24px 16px;
+            text-align: center;
+            background: rgba(99, 102, 241, 0.05);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-card:hover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .upload-card svg {
+            width: 40px;
+            height: 40px;
+            fill: none;
+            stroke: var(--primary);
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            margin-bottom: 8px;
+        }
+
+        .upload-card p {
+            font-size: 13px;
+            color: var(--text-main);
+            font-weight: 500;
+        }
+
+        .upload-card span {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: block;
+            margin-top: 4px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .doc-info {
+            display: none;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 14px;
+            font-size: 13px;
+        }
+
+        .doc-info h3 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: #a5b4fc;
+            word-break: break-all;
+        }
+
+        .doc-stat {
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-muted);
+            margin-top: 4px;
+            font-size: 12px;
+        }
+
+        .main-chat {
+            flex: 2;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .chat-placeholder {
+            margin: auto;
+            text-align: center;
+            color: var(--text-muted);
+            max-width: 280px;
+        }
+
+        .chat-placeholder svg {
+            width: 48px;
+            height: 48px;
+            stroke: var(--text-muted);
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 18px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.5;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: var(--user-bubble);
+            color: #ffffff;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.bot {
+            align-self: flex-start;
+            background: var(--bot-bubble);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            border-bottom-left-radius: 4px;
+        }
+
+        .input-area {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 12px;
+            background: rgba(13, 15, 23, 0.5);
+        }
+
+        .input-area input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: #ffffff;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .input-area input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        .input-area button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 0 20px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .input-area button:hover {
+            background: var(--primary-hover);
+        }
+
+        .input-area button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+        .status-badge.success { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+        .status-badge.loading { background: rgba(234, 179, 8, 0.2); color: #fde047; }
+        .status-badge.error { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="sidebar">
+        <div class="header">
+            <h1>PDF AI Assistant</h1>
+            <p>Upload a PDF and ask questions instantly.</p>
+        </div>
+
+        <div class="upload-card" onclick="document.getElementById('fileInput').click()">
+            <svg viewBox="0 0 24 24">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <p id="uploadText">Click to select PDF</p>
+            <span>Supports .pdf format</span>
+            <input type="file" id="fileInput" accept=".pdf">
+        </div>
+
+        <div id="statusBadge" class="status-badge" style="display: none;"></div>
+
+        <div id="docInfo" class="doc-info">
+            <h3 id="docTitle">document.pdf</h3>
+            <div class="doc-stat">
+                <span>Characters:</span>
+                <strong id="docChars">0</strong>
+            </div>
+            <div class="doc-stat">
+                <span>Chunks Indexed:</span>
+                <strong id="docChunks">0</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-chat">
+        <div class="chat-messages" id="chatMessages">
+            <div class="chat-placeholder" id="placeholder">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <p>Upload a PDF document on the left to start asking questions.</p>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <input type="text" id="questionInput" placeholder="Ask a question about your PDF..." disabled>
+            <button id="sendBtn" disabled>Send</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_BASE = "http://localhost:8001";
+    let activeDocId = null;
+
+    const fileInput = document.getElementById('fileInput');
+    const uploadText = document.getElementById('uploadText');
+    const statusBadge = document.getElementById('statusBadge');
+    const docInfo = document.getElementById('docInfo');
+    const docTitle = document.getElementById('docTitle');
+    const docChars = document.getElementById('docChars');
+    const docChunks = document.getElementById('docChunks');
+    const chatMessages = document.getElementById('chatMessages');
+    const placeholder = document.getElementById('placeholder');
+    const questionInput = document.getElementById('questionInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        showStatus('Uploading & Indexing PDF...', 'loading');
+        uploadText.innerText = file.name;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch(`${API_BASE}/upload`, {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.detail || 'Upload failed');
+            }
+
+            activeDocId = data.filename;
+            docTitle.innerText = data.filename;
+            docChars.innerText = data.char_count.toLocaleString();
+            docChunks.innerText = data.chunk_count.toLocaleString();
+            docInfo.style.display = 'block';
+
+            showStatus('Document Ready', 'success');
+            questionInput.disabled = false;
+            sendBtn.disabled = false;
+            if (placeholder) placeholder.style.display = 'none';
+
+            appendMessage('bot', `✅ Successfully indexed **${data.filename}** (${data.chunk_count} chunks). Ask me anything about this document!`);
+
+        } catch (err) {
+            showStatus(err.message, 'error');
+            appendMessage('bot', `❌ Error: ${err.message}`);
+        }
+    });
+
+    sendBtn.addEventListener('click', sendQuestion);
+    questionInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendQuestion();
+    });
+
+    async function sendQuestion() {
+        const question = questionInput.value.trim();
+        if (!question || !activeDocId) return;
+
+        appendMessage('user', question);
+        questionInput.value = '';
+        questionInput.disabled = true;
+        sendBtn.disabled = true;
+
+        const loadingId = appendMessage('bot', 'Thinking...');
+
+        try {
+            const res = await fetch(`${API_BASE}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question: question, doc_id: activeDocId })
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Chat request failed');
+
+            updateMessage(loadingId, data.answer);
+        } catch (err) {
+            updateMessage(loadingId, `❌ Error: ${err.message}`);
+        } finally {
+            questionInput.disabled = false;
+            sendBtn.disabled = false;
+            questionInput.focus();
+        }
+    }
+
+    function showStatus(msg, type) {
+        statusBadge.innerText = msg;
+        statusBadge.className = `status-badge ${type}`;
+        statusBadge.style.display = 'inline-block';
+    }
+
+    function appendMessage(sender, text) {
+        if (placeholder) placeholder.style.display = 'none';
+        const msgDiv = document.createElement('div');
+        const id = 'msg-' + Date.now();
+        msgDiv.id = id;
+        msgDiv.className = `message ${sender}`;
+        msgDiv.innerText = text;
+        chatMessages.appendChild(msgDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        return id;
+    }
+
+    function updateMessage(id, text) {
+        const msgDiv = document.getElementById(id);
+        if (msgDiv) {
+            msgDiv.innerText = text;
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    }
+</script>
+</body>
+</html>
